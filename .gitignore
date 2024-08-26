@@ -1,1 +1,5 @@
 venv/
+images/
+dist/
+build/
+app.log

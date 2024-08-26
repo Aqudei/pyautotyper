@@ -1,0 +1,5 @@
+window_name: visual studio # window title. partial match is ok
+to_type: "mi\n" # specify what to type
+start: 2024-08-26T04:00:00 # Full date and time with 'T' separating them
+end: 2024-08-31T04:00:00 # Full date and time with 'T' separating them
+interval: 3 # interval in minutes
