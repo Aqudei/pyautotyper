@@ -81,34 +81,13 @@ def find_window(window_name):
             continue        
         return w
 
-def ensure_unlocked(password):
-    current_resolution = pyautogui.size()
+def prevent_idle():
+    logger.info("Generating mouse movement...")
+    screen_width, screen_height = pyautogui.size()
     mouse_x,mouse_y = pyautogui.position()
-    pyautogui.moveTo(2,2,duration=1)
-    
-    try:
-        login_window = find_window("Workstation is Locked by")
-        if not login_window:
-            return
-        
-        if login_window.title != gw.getActiveWindow().title:
-            login_window.activate()
-
-        resized = resize_image_for_resolution("./images/login_switch.png",ORIGINAL_RESOLUTION,current_resolution)
-        # Save the resized image or use it directly
-        
-        login_x,login_y = pyautogui.locateCenterOnScreen(resized, grayscale=True)
-        pyautogui.click(login_x,login_y)
-        
-        pyautogui.write(f"{password}")
-        pyautogui.press("enter")
-        
-        
-    except Exception as e:
-        logger.exception(e)
-        logger.error(tb.format_exc())
-    finally:
-        pyautogui.moveTo(mouse_x,mouse_y)
+    mouse_x = (mouse_x + 256) % screen_width
+    mouse_y =  (mouse_y + 256) % screen_height
+    pyautogui.moveTo(mouse_x,mouse_y,duration=3)
     
 def perform_type_job(params):
     # Get current time without microseconds
@@ -118,8 +97,6 @@ def perform_type_job(params):
     if not (params['start'] <= time_now <= params['end']):
         print("Not Running. Current time is outside specified range of <start> and <end>.")
         return
-
-    ensure_unlocked(params.get('password'))
     
     # Calculate minutes delta and check divisibility by interval
     delta_minutes = (time_now - params['start']).total_seconds() // 60
@@ -145,7 +122,9 @@ def perform_type_job(params):
     
 if __name__ == "__main__":
     
+    
     try:
+    
         current_resolution = pyautogui.size()  # (width, height)
         print(f"Current Resolution: {current_resolution}")
         
@@ -155,7 +134,8 @@ if __name__ == "__main__":
         pprint.pprint(params)
         
         job = schedule.every().minute.at(":05").do(perform_type_job, params=params)
-        
+        no_idle_job = schedule.every().minute.do(prevent_idle)
+
         print("Waiting...")
         while True:
             checksum = compute_checksum(CONFIG_FILE)
@@ -168,7 +148,7 @@ if __name__ == "__main__":
                 schedule.cancel_job(job)
                 job = schedule.every().minute.at(":05").do(perform_type_job, params=params)
                 print("Waiting...")
-                
+            
             schedule.run_pending()
             time.sleep(1)
     except KeyboardInterrupt:
@@ -178,6 +158,3 @@ if __name__ == "__main__":
         logger.error(tb.format_exc())
     
     os.system("PAUSE")
-
-
-    
