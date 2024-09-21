@@ -95,7 +95,7 @@ def perform_type_job(params):
 
     # Check if current time is within the start and end range
     if not (params['start'] <= time_now <= params['end']):
-        print("Not Running. Current time is outside specified range of <start> and <end>.")
+        logger.info("Not Running. Current time is outside specified range of <start> and <end>.")
         return
     
     # Calculate minutes delta and check divisibility by interval
@@ -110,13 +110,13 @@ def perform_type_job(params):
         # Try to find the window if the active window doesn't match
         window = find_window(params['window_name'])
         if not window:
-            print(f"Cannot find window with title: {params['window_name']}")
+            logger.info(f"Cannot find window with title: {params['window_name']}")
             return
         window.maximize()
         window.activate()
 
     # Perform action on the found/active window
-    print(f"{time_now} - performing type...")
+    logger.info(f"{time_now} - performing type...")
     pyautogui.write(params['to_type'])
     pyautogui.press("enter")
     
@@ -126,28 +126,35 @@ if __name__ == "__main__":
     try:
     
         current_resolution = pyautogui.size()  # (width, height)
-        print(f"Current Resolution: {current_resolution}")
+        logger.info(f"Current Resolution: {current_resolution}")
         
-        print("Reading params...")
+        logger.info("Reading params...")
         params = read_params()
+        no_idle_interval = params.get('no_idle_interval',3)
         last_checksum = compute_checksum(CONFIG_FILE)
-        pprint.pprint(params)
+        logger.info(params)
         
         job = schedule.every().minute.at(":05").do(perform_type_job, params=params)
-        no_idle_job = schedule.every().minute.do(prevent_idle)
+        no_idle_job = schedule.every(no_idle_interval).minute.do(prevent_idle)
 
-        print("Waiting...")
+        logger.info("Waiting...")
         while True:
             checksum = compute_checksum(CONFIG_FILE)
             if checksum != last_checksum:
-                print("Settings chenged! Re-initializing program...")
+                logger.info("Settings chenged! Re-initializing program...")
                 last_checksum = checksum
                 params = read_params()
-                pprint.pprint(params)
+                no_idle_interval = params.get('no_idle_interval',3)
+
+                logger.info(params)
 
                 schedule.cancel_job(job)
+                schedule.cancel_job(no_idle_job)
+                
                 job = schedule.every().minute.at(":05").do(perform_type_job, params=params)
-                print("Waiting...")
+                no_idle_job = schedule.every(no_idle_interval).minute.do(prevent_idle)
+
+                logger.info("Waiting...")
             
             schedule.run_pending()
             time.sleep(1)
